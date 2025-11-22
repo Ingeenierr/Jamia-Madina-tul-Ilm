@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1095504790264",
+    "firebase_url": "https://jamia-madina-tul-ilmm-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "jamia-madina-tul-ilmm",
+    "storage_bucket": "jamia-madina-tul-ilmm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1095504790264:android:f77264caa2b9a902e4f10d",
+        "android_client_info": {
+          "package_name": "com.jamia.madinatulilm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHLjR5W-HRsVp-y39vTLTadHgESPsXF4w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

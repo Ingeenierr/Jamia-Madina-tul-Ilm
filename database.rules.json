@@ -1,0 +1,15 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "attendance": {
+      ".indexOn": ["date", "classId"]
+    },
+    "teacher_logs": {
+      ".indexOn": "teacherId"
+    },
+    "donations": {
+      ".indexOn": "studentId"
+    }
+  }
+}
