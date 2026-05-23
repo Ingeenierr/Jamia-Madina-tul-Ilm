@@ -1,29 +1,41 @@
 package com.jamia.madinatulilm.ui.attendance
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.jamia.madinatulilm.data.AttendanceRecord
 import com.jamia.madinatulilm.data.MadrasaClass
 import com.jamia.madinatulilm.data.Student
+import com.jamia.madinatulilm.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttendanceScreen(
-    navController: NavController, 
-    viewModel: AttendanceViewModel, 
-    onNavigateBack: () -> Unit, 
+    navController: NavController,
+    viewModel: AttendanceViewModel,
+    onNavigateBack: () -> Unit,
     classId: String?
 ) {
     val classes by viewModel.allClasses.collectAsState()
@@ -44,7 +56,22 @@ fun AttendanceScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(selectedClass?.className ?: "Manage Attendance") },
+                title = { 
+                    Column {
+                        Text(
+                            text = selectedClass?.className ?: "Attendance",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (selectedClass != null) {
+                            Text(
+                                text = "${selectedClass?.level} - ${selectedClass?.room}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -52,9 +79,13 @@ fun AttendanceScreen(
                 },
                 actions = {
                     IconButton(onClick = { viewModel.clearAttendance() }, enabled = selectedClass != null) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear Attendance")
+                        Icon(Icons.Default.Delete, contentDescription = "Clear Attendance", tint = StatusDisapproved)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = PrimaryGreen
+                )
             )
         }
     ) { paddingValues ->
@@ -62,33 +93,32 @@ fun AttendanceScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
         ) {
-            // Use a Column for better spacing and full-width controls
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (classId == null) {
-                    Text("Class", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                    ClassDropdown(classes, selectedClass, viewModel::onClassSelected)
-                } else {
-                    // If classId is passed, show the class name statically
-                    Text("Class", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(
-                        value = selectedClass?.className ?: "",
-                        onValueChange = {}, 
-                        readOnly = true, 
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                Text("Date", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                OutlinedButton(
-                    onClick = { showDatePicker = true },
-                    modifier = Modifier.fillMaxWidth()
+            Surface(
+                tonalElevation = 2.dp,
+                shadowElevation = 2.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(selectedDate)
+                    if (classId == null) {
+                        ClassDropdown(classes, selectedClass, viewModel::onClassSelected)
+                    }
+
+                    OutlinedButton(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(selectedDate, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
 
             if (showDatePicker) {
                 val datePickerState = rememberDatePickerState()
@@ -117,13 +147,17 @@ fun AttendanceScreen(
             }
 
             if (selectedClass != null) {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     items(studentsInClass) { student ->
                         val record = attendanceRecords.find { it.studentId == student.id }
                         AttendanceItem(
                             student = student,
-                            record = record, 
-                            classId = selectedClass?.id, 
+                            record = record,
+                            classId = selectedClass?.id,
                             onSave = viewModel::saveAttendance,
                             onStudentClick = { navController.navigate("student_profile/${student.id}") }
                         )
@@ -131,7 +165,7 @@ fun AttendanceScreen(
                 }
             } else {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Please select a class to view attendance.")
+                    Text("Select a class to manage attendance", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -143,72 +177,159 @@ fun AttendanceScreen(
 fun ClassDropdown(classes: List<MadrasaClass>, selectedClass: MadrasaClass?, onClassSelected: (MadrasaClass?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(
-        expanded = expanded, 
+        expanded = expanded,
         onExpandedChange = { expanded = !expanded },
         modifier = Modifier.fillMaxWidth()
     ) {
         OutlinedTextField(
-            value = selectedClass?.className ?: "Select a class",
+            value = selectedClass?.className ?: "Select Class",
             onValueChange = { },
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth()
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = PrimaryGreen,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            )
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             classes.forEach { madrasaClass ->
-                DropdownMenuItem(text = { Text(madrasaClass.className) }, onClick = {
-                    onClassSelected(madrasaClass)
-                    expanded = false
-                })
+                DropdownMenuItem(
+                    text = { 
+                        Column {
+                            Text(madrasaClass.className, fontWeight = FontWeight.Medium)
+                            Text(madrasaClass.level, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
+                    },
+                    onClick = {
+                        onClassSelected(madrasaClass)
+                        expanded = false
+                    }
+                )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AttendanceItem(student: Student, record: AttendanceRecord?, classId: String?, onSave: (String, String) -> Unit, onStudentClick: () -> Unit) {
+fun AttendanceItem(
+    student: Student,
+    record: AttendanceRecord?,
+    classId: String?,
+    onSave: (String, String) -> Unit,
+    onStudentClick: () -> Unit
+) {
     var status by remember(record, classId) { mutableStateOf(record?.attendance?.get(classId) ?: "") }
+    val haptic = LocalHapticFeedback.current
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(2.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = student.fullName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+            // Student Info
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onStudentClick)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    shape = ButtonDefaults.shape,
-                    onClick = { status = "Present"; onSave(student.id, "Present") },
-                    selected = status == "Present"
+                    .weight(1f)
+                    .clickable(onClick = onStudentClick),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryGreen.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("Present")
+                    Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryGreen, modifier = Modifier.size(24.dp))
                 }
-                SegmentedButton(
-                    shape = ButtonDefaults.shape,
-                    onClick = { status = "Absent"; onSave(student.id, "Absent") },
-                    selected = status == "Absent"
-                ) {
-                    Text("Absent")
-                }
-                SegmentedButton(
-                    shape = ButtonDefaults.shape,
-                    onClick = { status = "Leave"; onSave(student.id, "Leave") },
-                    selected = status == "Leave"
-                ) {
-                    Text("Leave")
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = student.fullName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "ID: ${student.id.takeLast(6)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
+
+            // Attendance Controls
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AttendanceToggleNode(
+                    label = "P",
+                    isSelected = status == "Present",
+                    activeColor = AttendancePresent,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        status = "Present"
+                        onSave(student.id, "Present")
+                    }
+                )
+                AttendanceToggleNode(
+                    label = "A",
+                    isSelected = status == "Absent",
+                    activeColor = AttendanceAbsent,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        status = "Absent"
+                        onSave(student.id, "Absent")
+                    }
+                )
+                AttendanceToggleNode(
+                    label = "L",
+                    isSelected = status == "Leave",
+                    activeColor = AttendanceLeave,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        status = "Leave"
+                        onSave(student.id, "Leave")
+                    }
+                )
+            }
         }
+    }
+}
+
+@Composable
+fun AttendanceToggleNode(
+    label: String,
+    isSelected: Boolean,
+    activeColor: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) activeColor else Color.Transparent)
+            .border(
+                width = 1.dp,
+                color = if (isSelected) activeColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
     }
 }

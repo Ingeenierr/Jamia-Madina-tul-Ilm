@@ -55,18 +55,20 @@ class LoginViewModel : ViewModel() {
             }
     }
 
-    fun signUp(name: String, email: String, pass: String) {
+    fun signUp(name: String, email: String, pass: String, role: UserRole = UserRole.TEACHER) {
         _loginState.value = LoginState.Loading
         auth.createUserWithEmailAndPassword(email, pass)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val firebaseUser = task.result?.user
                     firebaseUser?.uid?.let { uid ->
-                        val user = User(id = uid, name = name, email = email, role = UserRole.TEACHER, status = UserStatus.PENDING)
+                        val user = User(id = uid, name = name, email = email, role = role, status = UserStatus.PENDING)
                         usersRef.child(uid).setValue(user)
 
-                        val teacher = Teacher(id = uid, name = name, email = email)
-                        teachersRef.child(uid).setValue(teacher)
+                        if (role == UserRole.TEACHER) {
+                            val teacher = Teacher(id = uid, name = name, email = email)
+                            teachersRef.child(uid).setValue(teacher)
+                        }
 
                         // Don't auto-login, let them know they need approval
                         _loginState.value = LoginState.Error("Sign-up successful. Please wait for admin approval.")
