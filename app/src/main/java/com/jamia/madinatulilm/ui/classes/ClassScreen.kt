@@ -2,12 +2,14 @@ package com.jamia.madinatulilm.ui.classes
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,12 +19,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jamia.madinatulilm.data.MadrasaClass
 import com.jamia.madinatulilm.data.Student
 import com.jamia.madinatulilm.data.Teacher
+import com.jamia.madinatulilm.ui.theme.PrimaryGreen
+import com.jamia.madinatulilm.ui.theme.PrimaryGreenLight
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -47,7 +54,11 @@ fun ClassScreen(viewModel: ClassViewModel, onNavigateBack: () -> Unit) {
         },
         floatingActionButton = {
             if (!isSelectionMode) {
-                FloatingActionButton(onClick = { viewModel.startEditing(null) }) {
+                FloatingActionButton(
+                    onClick = { viewModel.startEditing(null) },
+                    containerColor = PrimaryGreen,
+                    contentColor = Color.White
+                ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Class")
                 }
             }
@@ -57,9 +68,10 @@ fun ClassScreen(viewModel: ClassViewModel, onNavigateBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) { 
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             items(classes, key = { it.id }) {
                 ClassListItem(
                     madrasaClass = it,
@@ -76,8 +88,7 @@ fun ClassScreen(viewModel: ClassViewModel, onNavigateBack: () -> Unit) {
                             viewModel.toggleSelectionMode()
                         }
                         viewModel.toggleClassSelection(it.id)
-                    },
-                    modifier = Modifier.animateItemPlacement()
+                    }
                 )
             }
         }
@@ -91,8 +102,8 @@ fun ClassScreen(viewModel: ClassViewModel, onNavigateBack: () -> Unit) {
             allStudents = allStudents,
             allTeachers = allTeachers,
             onDismiss = { viewModel.stopEditing() },
-            onConfirm = {
-                if (it.id.isBlank()) viewModel.addClass(it) else viewModel.updateClass(it)
+            onConfirm = { editedClass ->
+                if (editedClass.id.isBlank()) viewModel.addClass(editedClass) else viewModel.updateClass(editedClass)
             }
         )
     }
@@ -102,7 +113,7 @@ fun ClassScreen(viewModel: ClassViewModel, onNavigateBack: () -> Unit) {
 @Composable
 private fun DefaultTopAppBar(onNavigateBack: () -> Unit, onEnterSelectionMode: () -> Unit) {
     TopAppBar(
-        title = { Text("Manage Classes") },
+        title = { Text("Madrassa Classes", fontWeight = FontWeight.Bold) },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -112,7 +123,13 @@ private fun DefaultTopAppBar(onNavigateBack: () -> Unit, onEnterSelectionMode: (
             IconButton(onClick = onEnterSelectionMode) {
                 Icon(Icons.Default.CheckBox, contentDescription = "Select")
             }
-        }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = PrimaryGreen,
+            navigationIconContentColor = PrimaryGreen,
+            actionIconContentColor = PrimaryGreen
+        )
     )
 }
 
@@ -125,7 +142,7 @@ private fun SelectionTopAppBar(
     onDeleteSelected: () -> Unit
 ) {
     TopAppBar(
-        title = { Text("$selectionCount selected") },
+        title = { Text("$selectionCount Selected", fontWeight = FontWeight.Bold) },
         navigationIcon = {
             IconButton(onClick = onClearSelection) {
                 Icon(Icons.Default.Close, contentDescription = "Clear Selection")
@@ -138,7 +155,11 @@ private fun SelectionTopAppBar(
             IconButton(onClick = onSelectAll) {
                 Icon(Icons.Default.SelectAll, contentDescription = "Select All")
             }
-        }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     )
 }
 
@@ -151,19 +172,23 @@ fun ClassListItem(
     onItemLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClick = onItemClick,
-                onLongClick = onItemLongClick
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onItemLongClick()
+                }
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp)
     ) {
         Row(
             modifier = Modifier
@@ -171,15 +196,62 @@ fun ClassListItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isSelected) {
-                Icon(Icons.Default.CheckCircle, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(PrimaryGreen.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.School,
+                    contentDescription = null,
+                    tint = PrimaryGreen
+                )
             }
-            Text(madrasaClass.className, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = madrasaClass.className,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (madrasaClass.level.isNotBlank() || madrasaClass.room.isNotBlank()) {
+                    Text(
+                        text = "${madrasaClass.level} • Room: ${madrasaClass.room}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = "${madrasaClass.studentIds.size} Students",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PrimaryGreen,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = PrimaryGreen,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = Color.LightGray
+                )
+            }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassEditDialog(
     madrasaClass: MadrasaClass,
@@ -189,40 +261,110 @@ fun ClassEditDialog(
     onConfirm: (MadrasaClass) -> Unit
 ) {
     var className by remember { mutableStateOf(madrasaClass.className) }
+    var level by remember { mutableStateOf(madrasaClass.level) }
+    var room by remember { mutableStateOf(madrasaClass.room) }
     var teacherId by remember { mutableStateOf(madrasaClass.teacherId) }
-    val selectedStudentIds by remember { mutableStateOf(madrasaClass.studentIds.toMutableSet()) }
+    val selectedStudentIds = remember { mutableStateListOf<String>().apply { addAll(madrasaClass.studentIds) } }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (madrasaClass.id.isBlank()) "Add Class" else "Edit Class") },
+        title = { Text(if (madrasaClass.id.isBlank()) "Add New Class" else "Edit Class Details", fontWeight = FontWeight.Bold) },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(value = className, onValueChange = { className = it }, label = { Text("Class Name") })
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = className,
+                    onValueChange = { className = it },
+                    label = { Text("Class Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = level,
+                        onValueChange = { level = it },
+                        label = { Text("Level") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = room,
+                        onValueChange = { room = it },
+                        label = { Text("Room") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
 
                 if (allTeachers.isNotEmpty()) {
                     TeacherDropdown(allTeachers, teacherId) { teacherId = it }
                 }
 
-                Text("Students", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 16.dp))
-                allStudents.forEach { student ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = selectedStudentIds.contains(student.id),
-                            onCheckedChange = {
-                                if (it) selectedStudentIds.add(student.id) else selectedStudentIds.remove(student.id)
+                Text(
+                    "Enroll Students",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryGreen
+                )
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ) {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        allStudents.forEach { student ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (selectedStudentIds.contains(student.id)) {
+                                            selectedStudentIds.remove(student.id)
+                                        } else {
+                                            selectedStudentIds.add(student.id)
+                                        }
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Checkbox(
+                                    checked = selectedStudentIds.contains(student.id),
+                                    onCheckedChange = { checked ->
+                                        if (checked == true) selectedStudentIds.add(student.id) else selectedStudentIds.remove(student.id)
+                                    },
+                                    colors = CheckboxDefaults.colors(checkedColor = PrimaryGreen)
+                                )
+                                Text(student.fullName, style = MaterialTheme.typography.bodyMedium)
                             }
-                        )
-                        Text(student.fullName)
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = {
-                onConfirm(madrasaClass.copy(className = className, teacherId = teacherId, studentIds = selectedStudentIds.toList()))
-            }) { Text("Confirm") }
+            Button(
+                onClick = {
+                    onConfirm(madrasaClass.copy(
+                        className = className,
+                        level = level,
+                        room = room,
+                        teacherId = teacherId,
+                        studentIds = selectedStudentIds.toList()
+                    ))
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                shape = RoundedCornerShape(12.dp)
+            ) { Text("Confirm") }
         },
-        dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
     )
 }
 
@@ -230,20 +372,28 @@ fun ClassEditDialog(
 @Composable
 fun TeacherDropdown(teachers: List<Teacher>, selectedId: String, onSelection: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth()
+    ) {
         OutlinedTextField(
-            value = teachers.find { it.id == selectedId }?.name ?: "Select Teacher",
+            value = teachers.find { it.id == selectedId }?.name ?: "Assign Teacher",
             onValueChange = { },
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor()
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             teachers.forEach { teacher ->
-                DropdownMenuItem(text = { Text(teacher.name) }, onClick = {
-                    onSelection(teacher.id)
-                    expanded = false
-                })
+                DropdownMenuItem(
+                    text = { Text(teacher.name) },
+                    onClick = {
+                        onSelection(teacher.id)
+                        expanded = false
+                    }
+                )
             }
         }
     }

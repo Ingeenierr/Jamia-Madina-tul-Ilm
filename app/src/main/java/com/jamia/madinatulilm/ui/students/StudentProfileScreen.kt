@@ -1,36 +1,33 @@
 package com.jamia.madinatulilm.ui.students
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jamia.madinatulilm.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
     val viewModel: StudentProfileViewModel = viewModel()
     val student by viewModel.student.collectAsState()
+    var showContact by remember { mutableStateOf(false) }
 
     LaunchedEffect(studentId) {
         viewModel.setStudentId(studentId)
@@ -39,49 +36,118 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(student?.fullName ?: "Student Profile") },
+                title = { Text("Student Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = PrimaryGreen,
+                    navigationIconContentColor = PrimaryGreen
+                )
             )
         }
     ) { paddingValues ->
-        student?.let { 
+        student?.let { s ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp)
                     .verticalScroll(rememberScrollState())
+                    .background(MaterialTheme.colorScheme.background)
             ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                // Profile Header
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.background)
+                            )
+                        )
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Personal Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(
+                            modifier = Modifier.size(100.dp),
+                            shape = CircleShape,
+                            color = PrimaryGreen.copy(alpha = 0.1f)
+                        ) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .padding(20.dp)
+                                    .fillMaxSize(),
+                                tint = PrimaryGreen
+                            )
+                        }
                         Spacer(modifier = Modifier.height(16.dp))
-                        ProfileDetailItem(icon = Icons.Default.Person, label = "Full Name", value = it.fullName)
-                        ProfileDetailItem(icon = Icons.Default.Cake, label = "Age", value = it.age.toString())
-                        ProfileDetailItem(icon = Icons.Default.CalendarToday, label = "Date of Birth", value = it.dob)
-                        ProfileDetailItem(icon = Icons.Default.Badge, label = "CNIC", value = it.cnic)
+                        Text(
+                            text = s.fullName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Enrollment ID: ${s.id.takeLast(8).uppercase()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PrimaryGreen,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Contact Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        ProfileDetailItem(icon = Icons.Default.Shield, label = "Guardian Name", value = it.guardianName)
-                        ProfileDetailItem(icon = Icons.Default.Phone, label = "Guardian Contact", value = it.contactNumber)
-                        ProfileDetailItem(icon = Icons.Default.Home, label = "Address", value = it.address)
+                    // Personal Details Card
+                    ProfileSection(title = "Personal Details") {
+                        ProfileDetailItem(icon = Icons.Default.Cake, label = "Age", value = "${s.age} years")
+                        ProfileDetailItem(icon = Icons.Default.CalendarToday, label = "Date of Birth", value = s.dob)
+                        ProfileDetailItem(icon = Icons.Default.Badge, label = "National ID / B-Form", value = s.cnic)
+                    }
+
+                    // Guardian & Contact Card
+                    ProfileSection(title = "Guardian Information") {
+                        ProfileDetailItem(icon = Icons.Default.Shield, label = "Guardian Name", value = s.guardianName)
+                        
+                        // Masked Contact Number
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Phone,
+                                contentDescription = null,
+                                tint = PrimaryGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = "Guardian Contact", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                Text(
+                                    text = if (showContact) s.contactNumber else s.contactNumber.replace(Regex("\\d"), "*").take(s.contactNumber.length - 3) + s.contactNumber.takeLast(3),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            IconButton(onClick = { showContact = !showContact }) {
+                                Icon(
+                                    imageVector = if (showContact) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "Reveal Contact",
+                                    tint = PrimaryGreen,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        
+                        ProfileDetailItem(icon = Icons.Default.Home, label = "Residential Address", value = s.address)
                     }
                 }
             }
@@ -90,21 +156,48 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
 }
 
 @Composable
-private fun ProfileDetailItem(icon: ImageVector, label: String, value: String) {
+fun ProfileSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = PrimaryGreen
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+            content()
+        }
+    }
+}
+
+@Composable
+fun ProfileDetailItem(icon: ImageVector, label: String, value: String) {
     Row(
-        modifier = Modifier.padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = icon, 
-            contentDescription = label, 
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+            imageVector = icon,
+            contentDescription = null,
+            tint = PrimaryGreen,
+            modifier = Modifier.size(20.dp)
         )
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(text = label, style = MaterialTheme.typography.labelLarge)
-            Text(text = value, style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(text = label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Text(text = value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
         }
     }
 }
