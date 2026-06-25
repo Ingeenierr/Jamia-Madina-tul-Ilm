@@ -12,5 +12,8 @@ data class User(
     val email: String = "",
     val password: String = "",
     val role: UserRole = UserRole.TEACHER,
-    val status: UserStatus = UserStatus.PENDING
+    val status: UserStatus = UserStatus.PENDING,
+    val lastSeen: Long? = null,
+    val online: Boolean = false,
+    val typingIn: String? = null
 )

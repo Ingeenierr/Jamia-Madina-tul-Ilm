@@ -14,22 +14,60 @@ import kotlinx.coroutines.launch
 
 class StudentViewModel : ViewModel() {
 
-    private val database = Firebase.database
-    private val studentsRef = database.getReference("students")
+    private val database by lazy { Firebase.database }
+    private val studentsRef by lazy { database.getReference("students") }
+    private val classesRef by lazy { database.getReference("classes") }
 
     private val _allStudents = MutableStateFlow<List<Student>>(emptyList())
     val allStudents: StateFlow<List<Student>> = _allStudents
 
+    private val _allClasses = MutableStateFlow<Map<String, String>>(emptyMap())
+    val classNames: StateFlow<Map<String, String>> = _allClasses
+
+    // Sort and Filter Logic
+    val activeStudents = _allStudents.map { list -> 
+        list.filter { it.isActive }.sortedBy { it.fullName } 
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val expelledStudents = _allStudents.map { list -> 
+        list.filter { !it.isActive }.sortedBy { it.fullName } 
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val recentStudents = _allStudents.map { list ->
+        // Last 10 students added or added in last 2 days
+        list.sortedByDescending { it.timestamp }.take(10)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // UI Events for feedback (e.g. "Student Added")
+    private val _uiEvent = MutableSharedFlow<String>()
+    val uiEvent = _uiEvent.asSharedFlow()
+
     init {
         studentsRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val studentList = snapshot.children.mapNotNull { it.getValue(Student::class.java) }
-                _allStudents.value = studentList
+                try {
+                    val studentList = snapshot.children.mapNotNull { it.getValue(Student::class.java) }
+                    _allStudents.value = studentList
+                } catch (e: Exception) {
+                    android.util.Log.e("StudentViewModel", "Data parsing failed", e)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e("StudentViewModel", "Error fetching students", error.toException())
             }
+        })
+
+        classesRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val map = snapshot.children.mapNotNull { 
+                    val id = it.key
+                    val name = it.child("className").value?.toString()
+                    if (id != null && name != null) id to name else null
+                }.toMap()
+                _allClasses.value = map
+            }
+            override fun onCancelled(error: DatabaseError) {}
         })
     }
 
@@ -69,6 +107,10 @@ class StudentViewModel : ViewModel() {
         viewModelScope.launch {
             val selectedIds = _selectedStudentIds.value
             selectedIds.forEach { studentId ->
+                val student = _allStudents.value.find { it.id == studentId }
+                if (student != null && student.classId.isNotBlank()) {
+                    syncStudentWithClass(studentId, student.classId, "")
+                }
                 studentsRef.child(studentId).removeValue()
             }
             toggleSelectionMode()
@@ -81,17 +123,60 @@ class StudentViewModel : ViewModel() {
             if (key != null) {
                 val newStudent = student.copy(id = key)
                 studentsRef.child(key).setValue(newStudent)
-                    .addOnSuccessListener { Log.d("StudentViewModel", "Student added successfully") }
+                    .addOnSuccessListener { 
+                        Log.d("StudentViewModel", "Student added successfully")
+                        // Sync with class if assigned
+                        if (newStudent.classId.isNotBlank()) {
+                            syncStudentWithClass(newStudent.id, "", newStudent.classId)
+                        }
+                        viewModelScope.launch { _uiEvent.emit("Student '${student.fullName}' added successfully!") }
+                    }
                     .addOnFailureListener { Log.e("StudentViewModel", "Error adding student", it) }
             }
         }
     }
 
+    fun toggleStudentStatus(student: Student) {
+        viewModelScope.launch {
+            val updatedStudent = student.copy(isActive = !student.isActive)
+            updateStudent(updatedStudent)
+        }
+    }
+
     fun updateStudent(student: Student) {
         viewModelScope.launch {
+            val oldStudent = _allStudents.value.find { it.id == student.id }
             studentsRef.child(student.id).setValue(student)
-                .addOnSuccessListener { Log.d("StudentViewModel", "Student updated successfully") }
+                .addOnSuccessListener { 
+                    Log.d("StudentViewModel", "Student updated successfully")
+                    // Sync with class if classId changed
+                    if (oldStudent?.classId != student.classId) {
+                        syncStudentWithClass(student.id, oldStudent?.classId ?: "", student.classId)
+                    }
+                }
                 .addOnFailureListener { Log.e("StudentViewModel", "Error updating student", it) }
+        }
+    }
+
+    private fun syncStudentWithClass(studentId: String, oldClassId: String, newClassId: String) {
+        // Remove from old class
+        if (oldClassId.isNotBlank()) {
+            classesRef.child(oldClassId).child("studentIds").get().addOnSuccessListener { snapshot ->
+                val studentIds = snapshot.children.mapNotNull { it.value?.toString() }
+                val updatedIds = studentIds.filter { it != studentId }
+                classesRef.child(oldClassId).child("studentIds").setValue(updatedIds)
+            }
+        }
+        // Add to new class
+        if (newClassId.isNotBlank()) {
+            classesRef.child(newClassId).child("studentIds").get().addOnSuccessListener { snapshot ->
+                val studentIds = snapshot.children.mapNotNull { it.value?.toString() }
+                val updatedIds = studentIds.toMutableList()
+                if (!updatedIds.contains(studentId)) {
+                    updatedIds.add(studentId)
+                    classesRef.child(newClassId).child("studentIds").setValue(updatedIds)
+                }
+            }
         }
     }
 }

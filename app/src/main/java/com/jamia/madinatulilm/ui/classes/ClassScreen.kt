@@ -1,5 +1,6 @@
 package com.jamia.madinatulilm.ui.classes
 
+import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -21,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,6 +40,13 @@ fun ClassScreen(viewModel: ClassViewModel, onNavigateBack: () -> Unit) {
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
     val selectedClassIds by viewModel.selectedClassIds.collectAsState()
     val editingClass by viewModel.editingClass.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(viewModel.uiEvent) {
+        viewModel.uiEvent.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Scaffold(
         topBar = {

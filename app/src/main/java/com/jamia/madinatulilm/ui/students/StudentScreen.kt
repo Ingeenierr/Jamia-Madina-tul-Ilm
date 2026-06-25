@@ -5,11 +5,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -25,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jamia.madinatulilm.data.Student
+import com.jamia.madinatulilm.ui.theme.*
 import com.jamia.madinatulilm.utils.ExcelExporter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -34,13 +37,26 @@ fun StudentScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDonations: (String) -> Unit
 ) {
-    val students by viewModel.allStudents.collectAsState()
+    val allStudents by viewModel.allStudents.collectAsState()
+    val activeStudents by viewModel.activeStudents.collectAsState()
+    val expelledStudents by viewModel.expelledStudents.collectAsState()
+    val recentStudents by viewModel.recentStudents.collectAsState()
+    val classNames by viewModel.classNames.collectAsState()
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
     val selectedStudentIds by viewModel.selectedStudentIds.collectAsState()
+
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Active", "Expelled", "Recent")
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<Student?>(null) }
     val context = LocalContext.current
+
+    LaunchedEffect(viewModel.uiEvent) {
+        viewModel.uiEvent.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
@@ -54,8 +70,8 @@ fun StudentScreen(
         }
     }
 
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        uri?.let { ExcelExporter.exportStudentsToExcel(context, students, it) }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) { uri ->
+        uri?.let { ExcelExporter.exportStudentsToExcel(context, allStudents, it) }
     }
 
     Scaffold(
@@ -72,51 +88,84 @@ fun StudentScreen(
                     onNavigateBack = onNavigateBack,
                     onEnterSelectionMode = { viewModel.toggleSelectionMode() },
                     onImport = { importLauncher.launch("*/*") },
-                    onExport = { exportLauncher.launch("Students_${System.currentTimeMillis()}.csv") }
+                    onExport = { exportLauncher.launch("Students_${System.currentTimeMillis()}.xlsx") }
                 )
             }
         },
         floatingActionButton = {
             if (!isSelectionMode) {
-                FloatingActionButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Student")
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = ForestGreen,
+                    contentColor = LuxuryGold
+                ) {
+                    Icon(Icons.Default.PersonAdd, contentDescription = "Add Student")
                 }
             }
         }
     ) { paddingValues ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(SoftCream, Color.White)))
                 .padding(paddingValues)
-                .padding(horizontal = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(students, key = { it.id }) { student ->
-                StudentListItem(
-                    student = student,
-                    isSelected = selectedStudentIds.contains(student.id),
-                    onItemClick = {
-                        if (isSelectionMode) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = Color.Transparent,
+                contentColor = ForestGreen
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title, fontWeight = FontWeight.Bold) }
+                    )
+                }
+            }
+
+            val currentList = when (selectedTab) {
+                0 -> activeStudents
+                1 -> expelledStudents
+                else -> recentStudents
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
+            ) {
+                items(currentList, key = { it.id }) { student ->
+                    StudentListItem(
+                        student = student,
+                        isSelected = selectedStudentIds.contains(student.id),
+                        onItemClick = {
+                            if (isSelectionMode) {
+                                viewModel.toggleStudentSelection(student.id)
+                            } else {
+                                showEditDialog = student
+                            }
+                        },
+                        onItemLongClick = {
+                            if (!isSelectionMode) {
+                                viewModel.toggleSelectionMode()
+                            }
                             viewModel.toggleStudentSelection(student.id)
-                        } else {
-                            showEditDialog = student
-                        }
-                    },
-                    onItemLongClick = { // Long press still works as a shortcut
-                        if (!isSelectionMode) {
-                            viewModel.toggleSelectionMode()
-                        }
-                        viewModel.toggleStudentSelection(student.id)
-                    },
-                    onNavigateToDonations = { onNavigateToDonations(student.id) },
-                    modifier = Modifier.animateItemPlacement()
-                )
+                        },
+                        onNavigateToDonations = { onNavigateToDonations(student.id) },
+                        className = classNames[student.classId] ?: "No Class Assigned",
+                        onToggleStatus = { viewModel.toggleStudentStatus(student) }
+                    )
+                }
             }
         }
     }
 
     if (showAddDialog) {
         AddStudentDialog(
+            classNames = classNames,
             onDismiss = { showAddDialog = false },
             onAddStudent = {
                 viewModel.addStudent(it)
@@ -128,6 +177,7 @@ fun StudentScreen(
     showEditDialog?.let {
         EditStudentDialog(
             student = it,
+            classNames = classNames,
             onDismiss = { showEditDialog = null },
             onUpdateStudent = {
                 viewModel.updateStudent(it)
@@ -176,7 +226,7 @@ private fun DefaultTopAppBar(
                     leadingIcon = { Icon(Icons.Default.Upload, contentDescription = "Import") }
                 )
                 DropdownMenuItem(
-                    text = { Text("Export to CSV") },
+                    text = { Text("Export to Excel") },
                     onClick = {
                         onExport()
                         showMenu = false
@@ -228,42 +278,71 @@ fun StudentListItem(
     onItemClick: () -> Unit,
     onItemLongClick: () -> Unit,
     onNavigateToDonations: () -> Unit,
-    modifier: Modifier = Modifier
+    className: String,
+    onToggleStatus: () -> Unit
 ) {
-    Card(
-        modifier = modifier
+    Surface(
+        modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClick = onItemClick,
                 onLongClick = onItemLongClick
             ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(20.dp),
+        color = if (isSelected) ForestGreen.copy(alpha = 0.1f) else Color.White,
+        shadowElevation = if (isSelected) 0.dp else 2.dp,
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, ForestGreen) else null
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isSelected) {
-                Icon(Icons.Default.CheckCircle, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(ForestGreen.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = student.fullName.take(1).uppercase(),
+                    fontWeight = FontWeight.Bold,
+                    color = ForestGreen
+                )
             }
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(student.fullName, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Text("Guardian: ${student.guardianName}", fontSize = 16.sp, color = Color.Gray)
-                Text("CNIC: ${student.cnic}", fontSize = 14.sp, color = Color.Gray)
+                Text(student.fullName, fontWeight = FontWeight.ExtraBold, color = ForestGreen)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.School, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(className, fontSize = 11.sp, color = if (className == "No Class Assigned") Color.Red.copy(alpha = 0.6f) else ForestGreen.copy(alpha = 0.8f))
+                }
+                Text("ID: ${student.id.takeLast(6).uppercase()}", fontSize = 10.sp, color = Color.Gray)
             }
             if (!isSelected) {
-                IconButton(onClick = onNavigateToDonations) {
-                    Icon(Icons.Default.MonetizationOn, contentDescription = "Donations")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onNavigateToDonations) {
+                        Icon(Icons.Default.Payments, contentDescription = null, tint = DeepGold)
+                    }
+                    
+                    Surface(
+                        onClick = onToggleStatus,
+                        color = if (student.isActive) StatusApproved.copy(alpha = 0.1f) else StatusDisapproved.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.padding(start = 8.dp)
+                    ) {
+                        Text(
+                            text = if (student.isActive) "ACTIVE" else "EXPELLED",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (student.isActive) StatusApproved else StatusDisapproved
+                        )
+                    }
                 }
+            } else {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ForestGreen)
             }
         }
     }
@@ -273,6 +352,7 @@ fun StudentListItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddStudentDialog(
+    classNames: Map<String, String>,
     onDismiss: () -> Unit,
     onAddStudent: (Student) -> Unit
 ) {
@@ -282,18 +362,26 @@ fun AddStudentDialog(
     var contactNumber by remember { mutableStateOf("") }
     var cnic by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var classId by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add New Student") },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(value = fullName, onValueChange = { fullName = it }, label = { Text("Full Name") })
-                OutlinedTextField(value = age, onValueChange = { age = it }, label = { Text("Age") })
-                OutlinedTextField(value = guardianName, onValueChange = { guardianName = it }, label = { Text("Guardian's Name") })
-                OutlinedTextField(value = contactNumber, onValueChange = { contactNumber = it }, label = { Text("Contact Number") })
-                OutlinedTextField(value = cnic, onValueChange = { cnic = it }, label = { Text("CNIC") })
-                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") })
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(value = fullName, onValueChange = { fullName = it }, label = { Text("Full Name") }, modifier = Modifier.fillMaxWidth())
+                
+                // Class Selection Dropdown
+                ClassDropdown(classNames = classNames, selectedClassId = classId) { classId = it }
+
+                OutlinedTextField(value = age, onValueChange = { age = it }, label = { Text("Age") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = guardianName, onValueChange = { guardianName = it }, label = { Text("Guardian's Name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = contactNumber, onValueChange = { contactNumber = it }, label = { Text("Contact Number") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = cnic, onValueChange = { cnic = it }, label = { Text("CNIC") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
@@ -306,6 +394,7 @@ fun AddStudentDialog(
                         contactNumber = contactNumber,
                         cnic = cnic,
                         address = address,
+                        classId = classId,
                         dob = ""
                     )
                     onAddStudent(newStudent)
@@ -326,6 +415,7 @@ fun AddStudentDialog(
 @Composable
 fun EditStudentDialog(
     student: Student,
+    classNames: Map<String, String>,
     onDismiss: () -> Unit,
     onUpdateStudent: (Student) -> Unit
 ) {
@@ -335,18 +425,32 @@ fun EditStudentDialog(
     var contactNumber by remember { mutableStateOf(student.contactNumber) }
     var cnic by remember { mutableStateOf(student.cnic) }
     var address by remember { mutableStateOf(student.address) }
+    var isActive by remember { mutableStateOf(student.isActive) }
+    var classId by remember { mutableStateOf(student.classId) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit Student") },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(value = fullName, onValueChange = { fullName = it }, label = { Text("Full Name") })
-                OutlinedTextField(value = age, onValueChange = { age = it }, label = { Text("Age") })
-                OutlinedTextField(value = guardianName, onValueChange = { guardianName = it }, label = { Text("Guardian's Name") })
-                OutlinedTextField(value = contactNumber, onValueChange = { contactNumber = it }, label = { Text("Contact Number") })
-                OutlinedTextField(value = cnic, onValueChange = { cnic = it }, label = { Text("CNIC") })
-                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") })
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(value = fullName, onValueChange = { fullName = it }, label = { Text("Full Name") }, modifier = Modifier.fillMaxWidth())
+                
+                // Class Selection Dropdown
+                ClassDropdown(classNames = classNames, selectedClassId = classId) { classId = it }
+
+                OutlinedTextField(value = age, onValueChange = { age = it }, label = { Text("Age") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = guardianName, onValueChange = { guardianName = it }, label = { Text("Guardian's Name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = contactNumber, onValueChange = { contactNumber = it }, label = { Text("Contact Number") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = cnic, onValueChange = { cnic = it }, label = { Text("CNIC") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
+                
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp)) {
+                    Text("Is Active", modifier = Modifier.weight(1f))
+                    Switch(checked = isActive, onCheckedChange = { isActive = it })
+                }
             }
         },
         confirmButton = {
@@ -359,7 +463,8 @@ fun EditStudentDialog(
                         contactNumber = contactNumber,
                         cnic = cnic,
                         address = address,
-                        dob = ""
+                        isActive = isActive,
+                        classId = classId
                     )
                     onUpdateStudent(updatedStudent)
                 }
@@ -373,4 +478,52 @@ fun EditStudentDialog(
             }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ClassDropdown(
+    classNames: Map<String, String>,
+    selectedClassId: String,
+    onSelection: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = classNames[selectedClassId] ?: "Select Class",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Assigned Class") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("No Class Assigned") },
+                onClick = {
+                    onSelection("")
+                    expanded = false
+                }
+            )
+            classNames.forEach { (id, name) ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    onClick = {
+                        onSelection(id)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }

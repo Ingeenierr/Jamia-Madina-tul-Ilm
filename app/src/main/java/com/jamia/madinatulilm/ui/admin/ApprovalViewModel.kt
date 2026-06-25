@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 
 class ApprovalViewModel : ViewModel() {
 
-    private val usersRef = Firebase.database.getReference("users")
+    private val usersRef by lazy { Firebase.database.getReference("users") }
 
     private val _users = MutableStateFlow<List<User>>(emptyList())
     val users: StateFlow<List<User>> = _users
@@ -30,7 +30,11 @@ class ApprovalViewModel : ViewModel() {
     init {
         usersRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                _users.value = snapshot.children.mapNotNull { it.getValue(User::class.java) }
+                try {
+                    _users.value = snapshot.children.mapNotNull { it.getValue(User::class.java) }
+                } catch (e: Exception) {
+                    android.util.Log.e("ApprovalViewModel", "User parsing failed", e)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {

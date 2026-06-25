@@ -2,15 +2,12 @@ package com.jamia.madinatulilm.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Spiritual Greens
-val PrimaryGreen = Color(0xFF1B5E20)
-val PrimaryGreenDark = Color(0xFF003300)
-val PrimaryGreenLight = Color(0xFF4C8C4A)
-
-// Calm Amber Accents
-val AmberAccent = Color(0xFFFFA000)
-val AmberAccentLight = Color(0xFFFFD149)
-val AmberAccentDark = Color(0xFFC67100)
+// Premium Madrassa Palette
+val ForestGreen = Color(0xFF013220)
+val ForestGreenLight = Color(0xFF1B5E20)
+val SoftCream = Color(0xFFFCF5E5)
+val LuxuryGold = Color(0xFFD4AF37)
+val DeepGold = Color(0xFF996515)
 
 // Status Colors
 val StatusApproved = Color(0xFF2E7D32)
@@ -18,10 +15,18 @@ val StatusPending = Color(0xFFFBC02D)
 val StatusDisapproved = Color(0xFFD32F2F)
 
 // Attendance Colors
-val AttendancePresent = Color(0xFF2E7D32)
-val AttendanceAbsent = Color(0xFFD32F2F)
-val AttendanceLeave = Color(0xFFFFA000)
+val AttendancePresent = StatusApproved
+val AttendanceAbsent = StatusDisapproved
+val AttendanceLeave = StatusPending
 
-// Neutral Colors
-val BackgroundLight = Color(0xFFF5F5F5)
-val SurfaceLight = Color(0xFFFFFFFF)
+// Legacy compatibility (mapping to new palette where possible)
+val PrimaryGreen = ForestGreen
+val PrimaryGreenLight = ForestGreenLight
+val PrimaryGreenDark = ForestGreen
+val AmberAccent = LuxuryGold
+val AmberAccentLight = SoftCream
+val AmberAccentDark = DeepGold
+val BackgroundLight = SoftCream
+val SurfaceLight = Color.White
+val TextPrimary = Color(0xFF1A1C19)
+val TextSecondary = Color(0xFF434944)

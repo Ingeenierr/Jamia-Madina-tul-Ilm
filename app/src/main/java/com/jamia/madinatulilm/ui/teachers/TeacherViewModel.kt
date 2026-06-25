@@ -15,9 +15,9 @@ import kotlinx.coroutines.launch
 
 class TeacherViewModel : ViewModel() {
 
-    private val database = Firebase.database
-    private val teachersRef = database.getReference("teachers")
-    private val teacherLogsRef = database.getReference("teacher_logs")
+    private val database by lazy { Firebase.database }
+    private val teachersRef by lazy { database.getReference("teachers") }
+    private val teacherLogsRef by lazy { database.getReference("teacher_logs") }
 
     private val _searchText = MutableStateFlow("")
     val searchText = _searchText.asStateFlow()
@@ -43,8 +43,12 @@ class TeacherViewModel : ViewModel() {
     init {
         teachersRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val teacherList = snapshot.children.mapNotNull { it.getValue(Teacher::class.java) }
-                _allTeachers.value = teacherList
+                try {
+                    val teacherList = snapshot.children.mapNotNull { it.getValue(Teacher::class.java) }
+                    _allTeachers.value = teacherList
+                } catch (e: Exception) {
+                    android.util.Log.e("TeacherViewModel", "Data parsing failed", e)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -105,6 +109,13 @@ class TeacherViewModel : ViewModel() {
                     .addOnSuccessListener { Log.d("TeacherViewModel", "Teacher added successfully") }
                     .addOnFailureListener { Log.e("TeacherViewModel", "Error adding teacher", it) }
             }
+        }
+    }
+
+    fun togglePayrollStatus(teacher: Teacher) {
+        viewModelScope.launch {
+            val updatedTeacher = teacher.copy(isPaid = !teacher.isPaid)
+            updateTeacher(updatedTeacher)
         }
     }
 

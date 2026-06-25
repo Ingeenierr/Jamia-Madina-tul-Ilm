@@ -19,9 +19,9 @@ class LoginViewModel : ViewModel() {
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState
 
-    private val auth = Firebase.auth
-    private val usersRef = Firebase.database.getReference("users")
-    private val teachersRef = Firebase.database.getReference("teachers")
+    private val auth by lazy { Firebase.auth }
+    private val usersRef by lazy { Firebase.database.getReference("users") }
+    private val teachersRef by lazy { Firebase.database.getReference("teachers") }
 
     fun login(email: String, pass: String) {
         _loginState.value = LoginState.Loading
@@ -32,15 +32,20 @@ class LoginViewModel : ViewModel() {
                     firebaseUser?.uid?.let { uid ->
                         usersRef.child(uid).addListenerForSingleValueEvent(object : ValueEventListener {
                             override fun onDataChange(snapshot: DataSnapshot) {
-                                val user = snapshot.getValue(User::class.java)
-                                if (user != null) {
-                                    if (user.status == UserStatus.APPROVED) {
-                                        _loginState.value = LoginState.Success(uid, user.role)
+                                try {
+                                    val user = snapshot.getValue(User::class.java)
+                                    if (user != null) {
+                                        if (user.status == UserStatus.APPROVED) {
+                                            _loginState.value = LoginState.Success(uid, user.role)
+                                        } else {
+                                            _loginState.value = LoginState.Error("Account not approved.")
+                                        }
                                     } else {
-                                        _loginState.value = LoginState.Error("Account not approved.")
+                                        _loginState.value = LoginState.Error("User data not found.")
                                     }
-                                } else {
-                                    _loginState.value = LoginState.Error("User data not found.")
+                                } catch (e: Exception) {
+                                    _loginState.value = LoginState.Error("Data format error.")
+                                    android.util.Log.e("LoginViewModel", "User data parsing failed", e)
                                 }
                             }
 

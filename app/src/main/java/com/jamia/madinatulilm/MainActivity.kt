@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -26,15 +27,15 @@ import com.google.firebase.ktx.Firebase
 import com.jamia.madinatulilm.data.LeaveRequest
 import com.jamia.madinatulilm.data.LeaveStatus
 import com.jamia.madinatulilm.data.UserRole
+import com.jamia.madinatulilm.data.finance.FinanceDatabase
+import com.jamia.madinatulilm.data.finance.FinanceRepository
 import com.jamia.madinatulilm.ui.admin.ApprovalScreen
 import com.jamia.madinatulilm.ui.admin.LeaveRequestsAdminScreen
 import com.jamia.madinatulilm.ui.attendance.AttendanceScreen
 import com.jamia.madinatulilm.ui.attendance.AttendanceViewModel
 import com.jamia.madinatulilm.ui.classes.ClassScreen
 import com.jamia.madinatulilm.ui.classes.ClassViewModel
-import com.jamia.madinatulilm.ui.dashboard.AdminDashboardScreen
-import com.jamia.madinatulilm.ui.dashboard.AdminViewModel
-import com.jamia.madinatulilm.ui.dashboard.TeacherDashboardScreen
+import com.jamia.madinatulilm.ui.dashboard.*
 import com.jamia.madinatulilm.ui.donations.DonationDashboardScreen
 import com.jamia.madinatulilm.ui.donations.DonationDashboardViewModel
 import com.jamia.madinatulilm.ui.donations.DonationScreen
@@ -56,7 +57,7 @@ import com.jamia.madinatulilm.ui.theme.JamiaMadinatulIlmTheme
 class MainActivity : ComponentActivity() {
     
     private var leaveRequestEventListener: ChildEventListener? = null
-    private val leaveRequestsRef = Firebase.database.getReference("leave_requests")
+    private val leaveRequestsRef by lazy { Firebase.database.getReference("leave_requests") }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,12 +77,16 @@ class MainActivity : ComponentActivity() {
         if (leaveRequestEventListener == null) {
             leaveRequestEventListener = object : ChildEventListener {
                 override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
-                    val request = snapshot.getValue(LeaveRequest::class.java)
-                    if (request != null && request.status == LeaveStatus.PENDING) {
-                        val timeDiff = System.currentTimeMillis() - request.timestamp
-                        if (timeDiff < 60000) { 
-                             sendNotification("New Leave Request", "${request.teacherName} has requested leave.")
+                    try {
+                        val request = snapshot.getValue(LeaveRequest::class.java)
+                        if (request != null && request.status == LeaveStatus.PENDING) {
+                            val timeDiff = System.currentTimeMillis() - request.timestamp
+                            if (timeDiff < 60000) { 
+                                 sendNotification("New Leave Request", "${request.teacherName} has requested leave.")
+                            }
                         }
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Leave request parsing failed", e)
                     }
                 }
 
@@ -137,6 +142,16 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(onAdminLogin: () -> Unit, onLogout: () -> Unit) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val financeDatabase = remember { FinanceDatabase.getDatabase(context) }
+    val financeRepository = remember { FinanceRepository(financeDatabase.financeDao()) }
+    
+    LaunchedEffect(financeRepository) {
+        financeRepository.startRealtimeSync()
+    }
+
+    val financeViewModel: FinanceViewModel = viewModel(factory = FinanceViewModelFactory(financeRepository))
+    
     val searchViewModel: SearchViewModel = viewModel()
     val loginViewModel: LoginViewModel = viewModel()
 
@@ -194,7 +209,12 @@ fun AppNavigation(onAdminLogin: () -> Unit, onLogout: () -> Unit) {
         }
         composable("teachers") {
             val teacherViewModel: TeacherViewModel = viewModel()
-            TeacherScreen(viewModel = teacherViewModel, onNavigateBack = { navController.popBackStack() })
+            TeacherScreen(
+                viewModel = teacherViewModel,
+                financeViewModel = financeViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDonations = { teacherId -> navController.navigate("donations/$teacherId") }
+            )
         }
         composable("classes") {
             val classViewModel: ClassViewModel = viewModel()
@@ -219,8 +239,7 @@ fun AppNavigation(onAdminLogin: () -> Unit, onLogout: () -> Unit) {
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) {
             val studentId = it.arguments?.getString("studentId") ?: ""
-            val donationViewModel: DonationViewModel = viewModel()
-            DonationScreen(viewModel = donationViewModel, studentId = studentId, onNavigateBack = { navController.popBackStack() })
+            DonationScreen(financeViewModel = financeViewModel, targetId = studentId, onNavigateBack = { navController.popBackStack() })
         }
         composable("donation_dashboard") {
             val donationDashboardViewModel: DonationDashboardViewModel = viewModel()
@@ -238,7 +257,11 @@ fun AppNavigation(onAdminLogin: () -> Unit, onLogout: () -> Unit) {
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) {
             val studentId = it.arguments?.getString("studentId") ?: ""
-            StudentProfileScreen(studentId = studentId, onNavigateBack = { navController.popBackStack() })
+            StudentProfileScreen(
+                studentId = studentId, 
+                financeViewModel = financeViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         composable(
             "leave_request/{teacherId}",
@@ -249,6 +272,38 @@ fun AppNavigation(onAdminLogin: () -> Unit, onLogout: () -> Unit) {
         }
         composable("admin_leave_requests") {
             LeaveRequestsAdminScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        
+        // --- FINANCE MODULE ROUTES ---
+        composable("finance_dashboard") {
+            FinanceDashboardScreen(navController, financeViewModel, onNavigateBack = { navController.popBackStack() })
+        }
+        composable("finance_canteen") {
+            ShopScreen("CANTEEN", financeViewModel, onNavigateBack = { navController.popBackStack() })
+        }
+        composable("finance_maktab") {
+            ShopScreen(
+                category = "MAKTAB", 
+                viewModel = financeViewModel,
+                onNavigateToHistory = { navController.navigate("finance_library_history") },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("finance_donations") {
+            DonationFinanceScreen(financeViewModel, onNavigateBack = { navController.popBackStack() })
+        }
+        composable("finance_payroll") {
+            PayrollScreen(financeViewModel, onNavigateBack = { navController.popBackStack() })
+        }
+        composable("finance_library") {
+            LibraryScreen(
+                viewModel = financeViewModel,
+                onNavigateToHistory = { navController.navigate("finance_library_history") },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("finance_library_history") {
+            LendingHistoryScreen(financeViewModel, onNavigateBack = { navController.popBackStack() })
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.jamia.madinatulilm.ui.dashboard
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -26,11 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
+import com.jamia.madinatulilm.ui.components.GlassyBottomBar
+import com.jamia.madinatulilm.ui.components.NavigationItem
+import com.jamia.madinatulilm.ui.components.ConnectionStatusIndicator
 import com.jamia.madinatulilm.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,158 +58,168 @@ fun AdminDashboardScreen(
     }
 
     val navItems = listOf(
-        BottomNavItem("admin_dashboard/$user", Icons.Default.Home, "Home"),
-        BottomNavItem("students", Icons.Default.Group, "Students"),
-        BottomNavItem("teachers", Icons.Default.Person, "Teachers"),
-        BottomNavItem("classes", Icons.Default.School, "Classes"),
-        BottomNavItem("approvals", Icons.Default.Checklist, "Approvals")
+        NavigationItem("admin_dashboard/$user", Icons.Default.Home, "Home"),
+        NavigationItem("students", Icons.Default.Group, "Students"),
+        NavigationItem("teachers", Icons.Default.Person, "Teachers"),
+        NavigationItem("approvals", Icons.Default.HowToReg, "Approvals"),
+        NavigationItem("admin_leave_requests", Icons.AutoMirrored.Filled.EventNote, "Leaves")
     )
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Column {
-                        Text("Admin Panel", fontWeight = FontWeight.Bold)
-                        Text(
-                            text = "Welcome, ${userName.ifEmpty { "Administrator" }}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = PrimaryGreen.copy(alpha = 0.7f)
-                        )
-                    }
-                },
-                actions = {
-                    ConnectionStatusIndicator()
-                    IconButton(onClick = onLogout) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = PrimaryGreen,
-                    actionIconContentColor = PrimaryGreen
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { isVisible = true }
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(animationSpec = tween(800)) + 
+                slideInVertically(initialOffsetY = { 40 }) + 
+                scaleIn(initialScale = 0.95f),
+        exit = fadeOut(animationSpec = tween(500)) + scaleOut(targetScale = 1.05f)
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Column {
+                            Text("Admin Panel", fontWeight = FontWeight.Black, fontSize = 24.sp)
+                            Text(
+                                text = "Welcome, ${userName.ifEmpty { "Administrator" }}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = ForestGreen.copy(alpha = 0.7f)
+                            )
+                        }
+                    },
+                    actions = {
+                        ConnectionStatusIndicator()
+                        IconButton(onClick = onLogout) {
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = StatusDisapproved)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = ForestGreen
+                    )
                 )
-            )
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
+            },
+            bottomBar = {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
-                navItems.forEach { item ->
-                    NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
-                        selected = currentRoute == item.route,
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = PrimaryGreen,
-                            selectedTextColor = PrimaryGreen,
-                            indicatorColor = PrimaryGreen.copy(alpha = 0.1f)
-                        ),
-                        onClick = {
-                            if (currentRoute != item.route) {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
+                GlassyBottomBar(
+                    items = navItems,
+                    currentRoute = currentRoute,
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                    )
-                }
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            // Search Bar Area
-            Box(
+                    }
+                )
+            },
+            containerColor = SoftCream
+        ) { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Search Bar
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search students, teachers...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = PrimaryGreen) },
+                    placeholder = { Text("Search system...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = ForestGreen) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(20.dp),
                     keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        if (searchText.isNotBlank()) {
-                            onSearch(searchText)
-                        }
-                    }),
+                    keyboardActions = KeyboardActions(onSearch = { if (searchText.isNotBlank()) onSearch(searchText) }),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryGreen,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        focusedBorderColor = ForestGreen,
+                        unfocusedBorderColor = Color.White
                     )
                 )
-            }
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                item {
-                    MetricCard(
-                        title = "Students",
-                        value = studentCount.toString(),
-                        icon = Icons.Default.Group,
-                        gradient = Brush.verticalGradient(listOf(PrimaryGreen, PrimaryGreenLight))
-                    )
-                }
-                item {
-                    MetricCard(
-                        title = "Teachers",
-                        value = teacherCount.toString(),
-                        icon = Icons.Default.Person,
-                        gradient = Brush.verticalGradient(listOf(AmberAccentDark, AmberAccent))
-                    )
-                }
-                item {
-                    MetricCard(
-                        title = "Classes",
-                        value = classCount.toString(),
-                        icon = Icons.Default.School,
-                        gradient = Brush.verticalGradient(listOf(Color(0xFF455A64), Color(0xFF78909C)))
-                    )
-                }
-                item {
-                    MetricCard(
-                        title = "Attendance",
-                        value = "$presentStudentCount",
-                        subValue = "/ $studentCount",
-                        icon = Icons.Default.CheckCircle,
-                        gradient = Brush.verticalGradient(listOf(StatusApproved, Color(0xFF81C784))),
-                        onClick = onNavigateToAttendance
-                    )
-                }
-                item {
-                    QuickActionCard(
-                        title = "Leave Requests",
-                        icon = Icons.Default.Notifications,
-                        onClick = { navController.navigate("admin_leave_requests") }
-                    )
-                }
-                item {
-                    QuickActionCard(
-                        title = "User Approvals",
-                        icon = Icons.Default.HowToReg,
-                        onClick = { navController.navigate("approvals") }
-                    )
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    item {
+                        MetricCard(
+                            title = "Students",
+                            value = studentCount.toString(),
+                            icon = Icons.Default.Group,
+                            gradient = Brush.verticalGradient(listOf(ForestGreen, ForestGreenLight)),
+                            onClick = { navController.navigate("students") }
+                        )
+                    }
+                    item {
+                        MetricCard(
+                            title = "Teachers",
+                            value = teacherCount.toString(),
+                            icon = Icons.Default.Person,
+                            gradient = Brush.verticalGradient(listOf(DeepGold, LuxuryGold)),
+                            onClick = { navController.navigate("teachers") }
+                        )
+                    }
+                    item {
+                        MetricCard(
+                            title = "Classes",
+                            value = classCount.toString(),
+                            icon = Icons.Default.School,
+                            gradient = Brush.verticalGradient(listOf(Color(0xFF455A64), Color(0xFF78909C))),
+                            onClick = { navController.navigate("classes") }
+                        )
+                    }
+                    item {
+                        MetricCard(
+                            title = "Daily Attendance",
+                            value = "$presentStudentCount",
+                            subValue = "/ $studentCount",
+                            icon = Icons.Default.CheckCircle,
+                            gradient = Brush.verticalGradient(listOf(StatusApproved, Color(0xFF81C784))),
+                            onClick = onNavigateToAttendance
+                        )
+                    }
+                    item {
+                        MetricCard(
+                            title = "Finance Hub",
+                            value = "₨ Accounts",
+                            icon = Icons.Default.AccountBalanceWallet,
+                            gradient = Brush.verticalGradient(listOf(ForestGreen, DeepGold)),
+                            onClick = { navController.navigate("finance_dashboard") }
+                        )
+                    }
+                    item {
+                        MetricCard(
+                            title = "Library",
+                            value = "Books",
+                            icon = Icons.AutoMirrored.Filled.LibraryBooks,
+                            gradient = Brush.verticalGradient(listOf(Color(0xFF5D4037), Color(0xFF8D6E63))),
+                            onClick = { navController.navigate("finance_library") }
+                        )
+                    }
+                    item {
+                        MetricCard(
+                            title = "User Approvals",
+                            value = "Approvals",
+                            icon = Icons.Default.HowToReg,
+                            gradient = Brush.verticalGradient(listOf(Color(0xFF607D8B), Color(0xFF90A4AE))),
+                            onClick = { navController.navigate("approvals") }
+                        )
+                    }
+                    item {
+                        MetricCard(
+                            title = "Leave Requests",
+                            value = "Leaves",
+                            icon = Icons.AutoMirrored.Filled.EventNote,
+                            gradient = Brush.verticalGradient(listOf(Color(0xFF795548), Color(0xFFA1887F))),
+                            onClick = { navController.navigate("admin_leave_requests") }
+                        )
+                    }
                 }
             }
         }
@@ -225,10 +238,11 @@ fun MetricCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp)
-            .clickable(enabled = onClick != null) { onClick?.invoke() },
+            .height(130.dp)
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .animateContentSize(),
         shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Box(
             modifier = Modifier
@@ -236,35 +250,58 @@ fun MetricCard(
                 .background(gradient)
                 .padding(16.dp)
         ) {
-            Column(modifier = Modifier.align(Alignment.BottomStart)) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(32.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = value,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    if (subValue.isNotEmpty()) {
-                        Text(
-                            text = subValue,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.8f),
-                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                        )
-                    }
+            // Background Icon - Perfectly positioned
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.15f),
+                modifier = Modifier
+                    .size(80.dp)
+                    .align(Alignment.CenterEnd)
+                    .offset(x = 20.dp)
+            )
+
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top part: Icon and small indicator
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color.White.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(18.dp))
                 }
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
+
+                // Bottom part: Value and Title
+                Column {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = value,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            fontSize = 22.sp
+                        )
+                        if (subValue.isNotEmpty()) {
+                            Text(
+                                text = subValue,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
             }
         }
     }
@@ -276,85 +313,43 @@ fun QuickActionCard(
     icon: ImageVector,
     onClick: () -> Unit
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isPressed) 0.95f else 1.0f)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            .height(110.dp)
+            .scale(scale)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(16.dp),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryGreen.copy(alpha = 0.1f)),
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ForestGreen.copy(alpha = 0.08f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = PrimaryGreen, modifier = Modifier.size(24.dp))
+                Icon(icon, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(22.dp))
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = ForestGreen,
+                fontSize = 14.sp
             )
         }
     }
 }
-
-@Composable
-fun ConnectionStatusIndicator() {
-    var isConnected by remember { mutableStateOf(false) }
-
-    val connectedRef = Firebase.database.getReference(".info/connected")
-    DisposableEffect(Unit) {
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                isConnected = snapshot.getValue(Boolean::class.java) ?: false
-            }
-
-            override fun onCancelled(error: DatabaseError) {}
-        }
-        connectedRef.addValueEventListener(listener)
-        onDispose {
-            connectedRef.removeEventListener(listener)
-        }
-    }
-
-    Surface(
-        color = if (isConnected) StatusApproved.copy(alpha = 0.1f) else StatusDisapproved.copy(alpha = 0.1f),
-        shape = CircleShape,
-        modifier = Modifier.padding(end = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(if (isConnected) StatusApproved else StatusDisapproved)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = if (isConnected) "Online" else "Offline",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (isConnected) StatusApproved else StatusDisapproved,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-private data class BottomNavItem(val route: String, val icon: ImageVector, val label: String)

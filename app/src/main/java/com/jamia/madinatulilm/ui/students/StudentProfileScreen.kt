@@ -21,12 +21,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jamia.madinatulilm.ui.theme.*
+import com.jamia.madinatulilm.ui.dashboard.FinanceViewModel
+import com.jamia.madinatulilm.data.finance.DonationRecord
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
+fun StudentProfileScreen(
+    studentId: String,
+    financeViewModel: FinanceViewModel,
+    onNavigateBack: () -> Unit
+) {
     val viewModel: StudentProfileViewModel = viewModel()
     val student by viewModel.student.collectAsState()
+    val donations by financeViewModel.donations.collectAsState()
+    
+    val studentDonations = remember(donations, studentId) {
+        donations.filter { it.studentId == studentId }
+    }
+
     var showContact by remember { mutableStateOf(false) }
 
     LaunchedEffect(studentId) {
@@ -44,8 +56,8 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = PrimaryGreen,
-                    navigationIconContentColor = PrimaryGreen
+                    titleContentColor = ForestGreen,
+                    navigationIconContentColor = ForestGreen
                 )
             )
         }
@@ -56,7 +68,7 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
                     .fillMaxSize()
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(SoftCream)
             ) {
                 // Profile Header
                 Box(
@@ -64,7 +76,7 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
                         .fillMaxWidth()
                         .background(
                             brush = Brush.verticalGradient(
-                                listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.background)
+                                listOf(Color.White, SoftCream)
                             )
                         )
                         .padding(24.dp),
@@ -74,7 +86,7 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
                         Surface(
                             modifier = Modifier.size(100.dp),
                             shape = CircleShape,
-                            color = PrimaryGreen.copy(alpha = 0.1f)
+                            color = ForestGreen.copy(alpha = 0.1f)
                         ) {
                             Icon(
                                 Icons.Default.Person,
@@ -82,19 +94,20 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
                                 modifier = Modifier
                                     .padding(20.dp)
                                     .fillMaxSize(),
-                                tint = PrimaryGreen
+                                tint = ForestGreen
                             )
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = s.fullName,
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = ForestGreen
                         )
                         Text(
                             text = "Enrollment ID: ${s.id.takeLast(8).uppercase()}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = PrimaryGreen,
+                            color = LuxuryGold,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -125,7 +138,7 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
                             Icon(
                                 Icons.Default.Phone,
                                 contentDescription = null,
-                                tint = PrimaryGreen,
+                                tint = ForestGreen,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
@@ -141,13 +154,30 @@ fun StudentProfileScreen(studentId: String, onNavigateBack: () -> Unit) {
                                 Icon(
                                     imageVector = if (showContact) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     contentDescription = "Reveal Contact",
-                                    tint = PrimaryGreen,
+                                    tint = ForestGreen,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
                         
                         ProfileDetailItem(icon = Icons.Default.Home, label = "Residential Address", value = s.address)
+                    }
+
+                    // Financial Contribution Section
+                    ProfileSection(title = "Financial History") {
+                        if (studentDonations.isEmpty()) {
+                            Text("No donation records found.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        } else {
+                            studentDonations.forEach { donation ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(donation.monthYear, style = MaterialTheme.typography.bodyMedium)
+                                    Text("₨ ${donation.amount}", fontWeight = FontWeight.Bold, color = ForestGreen)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -160,7 +190,7 @@ fun ProfileSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -168,7 +198,7 @@ fun ProfileSection(title: String, content: @Composable ColumnScope.() -> Unit) {
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = PrimaryGreen
+                color = ForestGreen
             )
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 12.dp),
@@ -191,7 +221,7 @@ fun ProfileDetailItem(icon: ImageVector, label: String, value: String) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = PrimaryGreen,
+            tint = ForestGreen,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
