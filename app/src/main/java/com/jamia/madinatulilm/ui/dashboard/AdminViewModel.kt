@@ -15,12 +15,12 @@ import java.util.*
 
 class AdminViewModel : ViewModel() {
 
-    private val database = Firebase.database
-    private val usersRef = database.getReference("users")
-    private val studentsRef = database.getReference("students")
-    private val teachersRef = database.getReference("teachers")
-    private val classesRef = database.getReference("classes")
-    private val attendanceRef = database.getReference("attendance")
+    private val database by lazy { Firebase.database }
+    private val usersRef by lazy { database.getReference("users") }
+    private val studentsRef by lazy { database.getReference("students") }
+    private val teachersRef by lazy { database.getReference("teachers") }
+    private val classesRef by lazy { database.getReference("classes") }
+    private val attendanceRef by lazy { database.getReference("attendance") }
 
     private val _studentCount = MutableStateFlow(0)
     val studentCount: StateFlow<Int> = _studentCount
@@ -78,9 +78,13 @@ class AdminViewModel : ViewModel() {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         attendanceRef.orderByChild("date").equalTo(today).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val presentCount = snapshot.children.mapNotNull { it.getValue(AttendanceRecord::class.java) }
-                    .count { record -> record.attendance.values.any { it == "Present" } }
-                _presentStudentCount.value = presentCount
+                try {
+                    val presentCount = snapshot.children.mapNotNull { it.getValue(AttendanceRecord::class.java) }
+                        .count { record -> record.attendance.values.any { it == "Present" } }
+                    _presentStudentCount.value = presentCount
+                } catch (e: Exception) {
+                    android.util.Log.e("AdminViewModel", "Attendance data parsing failed", e)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {}

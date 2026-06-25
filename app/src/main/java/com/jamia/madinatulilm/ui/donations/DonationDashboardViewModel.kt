@@ -25,17 +25,21 @@ class DonationDashboardViewModel : ViewModel() {
     private val _allDonations = MutableStateFlow<List<DonationListItemData>>(emptyList())
     val allDonations: StateFlow<List<DonationListItemData>> = _allDonations
 
-    private val database = Firebase.database
-    private val donationsRef = database.getReference("donations")
+    private val database by lazy { Firebase.database }
+    private val donationsRef by lazy { database.getReference("donations") }
 
     init {
         donationsRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val donationList = snapshot.children.mapNotNull { it.getValue(Donation::class.java) }
-                val donationListItemDataList = donationList.map { donation ->
-                    DonationListItemData(donation, null) // We'll handle fetching the student later if needed
+                try {
+                    val donationList = snapshot.children.mapNotNull { it.getValue(Donation::class.java) }
+                    val donationListItemDataList = donationList.map { donation ->
+                        DonationListItemData(donation, null)
+                    }
+                    _allDonations.value = donationListItemDataList
+                } catch (e: Exception) {
+                    android.util.Log.e("DonationDashboardVM", "Data parsing failed", e)
                 }
-                _allDonations.value = donationListItemDataList
             }
 
             override fun onCancelled(error: DatabaseError) {

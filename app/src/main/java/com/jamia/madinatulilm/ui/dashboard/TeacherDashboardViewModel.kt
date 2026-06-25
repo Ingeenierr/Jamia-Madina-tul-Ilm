@@ -17,9 +17,9 @@ import kotlinx.coroutines.launch
 
 class TeacherDashboardViewModel : ViewModel() {
 
-    private val database = Firebase.database
-    private val teachersRef = database.getReference("teachers")
-    private val classesRef = database.getReference("classes")
+    private val database by lazy { Firebase.database }
+    private val teachersRef by lazy { database.getReference("teachers") }
+    private val classesRef by lazy { database.getReference("classes") }
 
     private val _teacher = MutableStateFlow<Teacher?>(null)
     val teacher: StateFlow<Teacher?> = _teacher
@@ -35,20 +35,26 @@ class TeacherDashboardViewModel : ViewModel() {
         viewModelScope.launch {
             teachersRef.child(uid).addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val foundTeacher = snapshot.getValue(Teacher::class.java)
-                    _teacher.value = foundTeacher
+                    try {
+                        val foundTeacher = snapshot.getValue(Teacher::class.java)
+                        _teacher.value = foundTeacher
 
-                    if (foundTeacher != null) {
-                        classesRef.orderByChild("teacherId").equalTo(foundTeacher.id)
-                            .addValueEventListener(object : ValueEventListener {
-                                override fun onDataChange(snapshot: DataSnapshot) {
-                                    _assignedClasses.value = snapshot.children.mapNotNull { it.getValue(MadrasaClass::class.java) }
-                                }
+                        if (foundTeacher != null) {
+                            classesRef.orderByChild("teacherId").equalTo(foundTeacher.id)
+                                .addValueEventListener(object : ValueEventListener {
+                                    override fun onDataChange(snapshot: DataSnapshot) {
+                                        try {
+                                            _assignedClasses.value = snapshot.children.mapNotNull { it.getValue(MadrasaClass::class.java) }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("TeacherDashboardVM", "Class parsing failed", e)
+                                        }
+                                    }
 
-                                override fun onCancelled(error: DatabaseError) {
-                                    // Handle class fetching error
-                                }
-                            })
+                                    override fun onCancelled(error: DatabaseError) {}
+                                })
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("TeacherDashboardVM", "Teacher parsing failed", e)
                     }
                 }
 

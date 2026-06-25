@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 class LeaveRequestsAdminViewModel : ViewModel() {
 
-    private val leaveRequestsRef = Firebase.database.getReference("leave_requests")
+    private val leaveRequestsRef by lazy { Firebase.database.getReference("leave_requests") }
 
     private val _leaveRequests = MutableStateFlow<List<LeaveRequest>>(emptyList())
     val leaveRequests: StateFlow<List<LeaveRequest>> = _leaveRequests
@@ -36,6 +36,10 @@ class LeaveRequestsAdminViewModel : ViewModel() {
 
     fun rejectRequest(requestId: String) {
         updateRequestStatus(requestId, LeaveStatus.REJECTED)
+    }
+
+    fun deleteRequest(requestId: String) {
+        leaveRequestsRef.child(requestId).removeValue()
     }
 
     private fun updateRequestStatus(requestId: String, status: LeaveStatus) {

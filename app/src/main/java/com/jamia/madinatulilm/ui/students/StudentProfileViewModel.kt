@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 class StudentProfileViewModel : ViewModel() {
 
-    private val studentsRef = Firebase.database.getReference("students")
+    private val studentsRef by lazy { Firebase.database.getReference("students") }
 
     private val _student = MutableStateFlow<Student?>(null)
     val student: StateFlow<Student?> = _student

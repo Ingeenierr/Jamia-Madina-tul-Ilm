@@ -17,10 +17,10 @@ import java.util.*
 
 class AttendanceViewModel : ViewModel() {
 
-    private val database = Firebase.database
-    private val classesRef = database.getReference("classes")
-    private val studentsRef = database.getReference("students")
-    private val attendanceRef = database.getReference("attendance")
+    private val database by lazy { Firebase.database }
+    private val classesRef by lazy { database.getReference("classes") }
+    private val studentsRef by lazy { database.getReference("students") }
+    private val attendanceRef by lazy { database.getReference("attendance") }
 
     private val _allClasses = MutableStateFlow<List<MadrasaClass>>(emptyList())
     val allClasses: StateFlow<List<MadrasaClass>> = _allClasses
@@ -40,8 +40,12 @@ class AttendanceViewModel : ViewModel() {
     init {
         classesRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val classList = snapshot.children.mapNotNull { it.getValue(MadrasaClass::class.java) }
-                _allClasses.value = classList
+                try {
+                    val classList = snapshot.children.mapNotNull { it.getValue(MadrasaClass::class.java) }
+                    _allClasses.value = classList
+                } catch (e: Exception) {
+                    android.util.Log.e("AttendanceViewModel", "Class parsing failed", e)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -50,11 +54,15 @@ class AttendanceViewModel : ViewModel() {
         })
 
         viewModelScope.launch {
-            selectedDate.collect {
-                attendanceRef.orderByChild("date").equalTo(it)
+            selectedDate.collect { date ->
+                attendanceRef.orderByChild("date").equalTo(date)
                     .addValueEventListener(object : ValueEventListener {
                         override fun onDataChange(snapshot: DataSnapshot) {
-                            _attendanceRecords.value = snapshot.children.mapNotNull { it.getValue(AttendanceRecord::class.java) }
+                            try {
+                                _attendanceRecords.value = snapshot.children.mapNotNull { it.getValue(AttendanceRecord::class.java) }
+                            } catch (e: Exception) {
+                                android.util.Log.e("AttendanceViewModel", "Attendance parsing failed", e)
+                            }
                         }
 
                         override fun onCancelled(error: DatabaseError) {

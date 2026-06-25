@@ -26,16 +26,20 @@ class SearchViewModel : ViewModel() {
     private val _teachers = MutableStateFlow<List<Teacher>>(emptyList())
     private val _classes = MutableStateFlow<List<MadrasaClass>>(emptyList())
 
-    private val database = Firebase.database
-    private val studentsRef = database.getReference("students")
-    private val teachersRef = database.getReference("teachers")
-    private val classesRef = database.getReference("classes")
+    private val database by lazy { Firebase.database }
+    private val studentsRef by lazy { database.getReference("students") }
+    private val teachersRef by lazy { database.getReference("teachers") }
+    private val classesRef by lazy { database.getReference("classes") }
 
     init {
         studentsRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val studentList = snapshot.children.mapNotNull { it.getValue(Student::class.java) }
-                _students.value = studentList
+                try {
+                    val studentList = snapshot.children.mapNotNull { it.getValue(Student::class.java) }
+                    _students.value = studentList
+                } catch (e: Exception) {
+                    android.util.Log.e("SearchViewModel", "Student parsing failed", e)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -45,8 +49,12 @@ class SearchViewModel : ViewModel() {
 
         teachersRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val teacherList = snapshot.children.mapNotNull { it.getValue(Teacher::class.java) }
-                _teachers.value = teacherList
+                try {
+                    val teacherList = snapshot.children.mapNotNull { it.getValue(Teacher::class.java) }
+                    _teachers.value = teacherList
+                } catch (e: Exception) {
+                    android.util.Log.e("SearchViewModel", "Teacher parsing failed", e)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -56,8 +64,12 @@ class SearchViewModel : ViewModel() {
 
         classesRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val classList = snapshot.children.mapNotNull { it.getValue(MadrasaClass::class.java) }
-                _classes.value = classList
+                try {
+                    val classList = snapshot.children.mapNotNull { it.getValue(MadrasaClass::class.java) }
+                    _classes.value = classList
+                } catch (e: Exception) {
+                    android.util.Log.e("SearchViewModel", "Class parsing failed", e)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {

@@ -79,6 +79,12 @@ dependencies {
     // Icons
     implementation(libs.androidx.material.icons.extended)
 
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.gson)
+
     // Excel
     // implementation(libs.apache.poi)
     implementation("org.apache.poi:poi-ooxml:5.2.5")

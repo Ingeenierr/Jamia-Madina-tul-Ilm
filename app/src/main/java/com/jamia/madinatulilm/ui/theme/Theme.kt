@@ -1,34 +1,31 @@
 package com.jamia.madinatulilm.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorPalette = darkColorScheme(
-    primary = PrimaryGreenLight,
-    onPrimary = Color.Black,
-    secondary = AmberAccent,
-    onSecondary = Color.Black,
-    tertiary = AmberAccentLight,
-    background = Color(0xFF121212),
-    surface = Color(0xFF1E1E1E),
-    onSurface = Color.White,
-    onBackground = Color.White
+    primary = LuxuryGold,
+    onPrimary = ForestGreen,
+    secondary = ForestGreenLight,
+    onSecondary = SoftCream,
+    background = Color(0xFF1A1C19),
+    surface = Color(0xFF1A1C19),
+    onSurface = SoftCream,
+    onBackground = SoftCream
 )
 
 private val LightColorPalette = lightColorScheme(
-    primary = PrimaryGreen,
-    onPrimary = Color.White,
-    secondary = AmberAccent,
-    onSecondary = Color.Black,
-    tertiary = AmberAccentLight,
-    background = BackgroundLight,
-    surface = SurfaceLight,
-    onSurface = Color.Black,
-    onBackground = Color.Black,
+    primary = ForestGreen,
+    onPrimary = SoftCream,
+    secondary = LuxuryGold,
+    onSecondary = ForestGreen,
+    tertiary = DeepGold,
+    background = SoftCream,
+    surface = Color.White,
+    onSurface = ForestGreen,
+    onBackground = ForestGreen,
     error = StatusDisapproved,
     onError = Color.White
 )

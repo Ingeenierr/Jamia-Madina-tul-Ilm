@@ -1,7 +1,11 @@
 package com.jamia.madinatulilm.data
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "teachers")
 data class Teacher(
-    val id: String = "",
+    @PrimaryKey val id: String = "",
     val name: String = "",
     val qualifications: String = "",
     val contactInfo: String = "",
@@ -10,5 +14,6 @@ data class Teacher(
     val dob: String = "",
     val salary: Double = 0.0,
     val email: String = "",
-    val classIds: List<String> = emptyList()
+    val classIds: List<String> = emptyList(),
+    val isPaid: Boolean = false // Added for payroll tracking
 )

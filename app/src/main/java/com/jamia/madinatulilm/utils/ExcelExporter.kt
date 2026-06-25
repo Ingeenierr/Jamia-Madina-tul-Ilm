@@ -5,6 +5,9 @@ import android.net.Uri
 import com.jamia.madinatulilm.data.Donation
 import com.jamia.madinatulilm.data.Student
 import com.jamia.madinatulilm.data.Teacher
+import com.jamia.madinatulilm.data.finance.DonationRecord
+import com.jamia.madinatulilm.data.finance.PayrollRecord
+import com.jamia.madinatulilm.data.finance.Transaction
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.InputStream
@@ -177,6 +180,62 @@ object ExcelExporter {
         context.contentResolver.openOutputStream(uri)?.use { outputStream: OutputStream ->
             workbook.write(outputStream)
         }
+        workbook.close()
+    }
+
+    fun exportFinanceReportToExcel(
+        context: Context,
+        month: String,
+        donations: List<DonationRecord>,
+        payroll: List<PayrollRecord>,
+        transactions: List<Transaction>,
+        uri: Uri
+    ) {
+        val workbook = XSSFWorkbook()
+        
+        // 1. Overview Sheet
+        val summarySheet = workbook.createSheet("Monthly Overview")
+        val h1 = summarySheet.createRow(0)
+        h1.createCell(0).setCellValue("Report Month: $month")
+        
+        val h2 = summarySheet.createRow(2)
+        h2.createCell(0).setCellValue("Category")
+        h2.createCell(1).setCellValue("Total (Rs.)")
+        
+        val dTotal = donations.sumOf { it.amount }
+        val pTotal = payroll.filter { it.isPaid }.sumOf { it.amount }
+        val tProfit = transactions.sumOf { it.profit }
+        
+        val r1 = summarySheet.createRow(3)
+        r1.createCell(0).setCellValue("Total Donations")
+        r1.createCell(1).setCellValue(dTotal)
+        
+        val r2 = summarySheet.createRow(4)
+        r2.createCell(0).setCellValue("Total Payroll Paid")
+        r2.createCell(1).setCellValue(pTotal)
+        
+        val r3 = summarySheet.createRow(5)
+        r3.createCell(0).setCellValue("Shop Profit")
+        r3.createCell(1).setCellValue(tProfit)
+        
+        val r4 = summarySheet.createRow(7)
+        r4.createCell(0).setCellValue("NET BALANCE")
+        r4.createCell(1).setCellValue(dTotal + tProfit - pTotal)
+
+        // 2. Details Sheet
+        val donationSheet = workbook.createSheet("Donations Detail")
+        val dh = donationSheet.createRow(0)
+        dh.createCell(0).setCellValue("Donor")
+        dh.createCell(1).setCellValue("Amount")
+        dh.createCell(2).setCellValue("Type")
+        donations.forEachIndexed { i, d ->
+            val row = donationSheet.createRow(i + 1)
+            row.createCell(0).setCellValue(d.donorName)
+            row.createCell(1).setCellValue(d.amount)
+            row.createCell(2).setCellValue(d.type)
+        }
+
+        context.contentResolver.openOutputStream(uri)?.use { workbook.write(it) }
         workbook.close()
     }
 }

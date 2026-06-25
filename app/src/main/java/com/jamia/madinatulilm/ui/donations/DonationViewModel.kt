@@ -14,8 +14,8 @@ import kotlinx.coroutines.launch
 
 class DonationViewModel : ViewModel() {
 
-    private val database = Firebase.database
-    private val donationsRef = database.getReference("donations")
+    private val database by lazy { Firebase.database }
+    private val donationsRef by lazy { database.getReference("donations") }
 
     fun getDonationsForStudent(studentId: String): Flow<List<Donation>> {
         val flow = MutableStateFlow<List<Donation>>(emptyList())
