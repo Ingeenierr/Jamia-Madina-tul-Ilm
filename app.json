@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Jamia Madinat-ul-Ilm",
+    "slug": "jamia-madinatul-ilm",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#013220"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jamia.madinatulilm"
+    },
+    "android": {
+      "package": "com.jamia.madinatulilm",
+      "adaptiveIcon": {
+        "backgroundColor": "#013220"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#013220"
+        }
+      ]
+    ]
+  }
+}
